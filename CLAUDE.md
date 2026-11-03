@@ -1,5 +1,9 @@
 # Ratify — контекст для Claude
 
+> Основной рабочий контекст проекта теперь в `AGENTS.md` (состояние на 2026-11-03,
+> там же планы по боту, таблицам и отчётам). Этот файл остаётся историческим источником
+> и не должен расходиться с `AGENTS.md`: при конфликте верить `AGENTS.md`.
+
 Отвечай по-русски. Код, имена переменных и коммиты — на английском.
 
 ## Что это за проект
@@ -20,7 +24,9 @@ Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind CSS 4, Framer M
 - `src/lib/services-data.ts` — единый источник: услуги, шаги работы, FAQ. Страницы услуг, цены, меню и подвал строятся из него. Новая услуга = новый объект в массиве `services`.
 - `src/app/services/[slug]/page.tsx` — один шаблон для всех услуг.
 - `src/app/` — главная, `prices`, `calculator`, `guarantees`, `faq`, `about`, `contacts`, `offer`, `privacy`, `api/leads`, `api/health`.
-- `src/components/` — `Header`, `Footer`, `OrderModal` (форма заявки), `ExitIntentModal`, `BudgetCalculator`, `ServiceCta` (кнопка + модалка для серверных страниц), `ServiceIcon`, `AnimatedSection`.
+- `src/components/` — `Header` (мега-меню «Услуги» и «Компания», мобильное меню), `Footer`, `OrderModal` (форма заявки), `ExitIntentModal`, `BudgetCalculator`, `ServiceCta` (кнопка + модалка для серверных страниц), `ServiceIcon`, `AnimatedSection`, `Logo`, `Landscape` (SVG-пейзажи вместо фото), `DotArt` (точечные иллюстрации для тёмных блоков), `PhoneField` (поле телефона с маской).
+- `src/components/home/` — блоки главной: `HeroConsole` (вкладки /бюджет и /аудит), `ServicesShowcase`, `FaqList`, `ContactForm`.
+- `src/lib/leads-client.ts` — отправка заявки из браузера в `/api/leads` с проверкой телефона.
 - `src/lib/budget-math.ts` — расчёт рекламного бюджета (чистая арифметика по введённым числам, не прогноз).
 - `src/db/schema.ts` — таблица `leads` (имя, телефон, email, сайт, услуга, бюджет, сообщение, тип).
 - `src/lib/telegram.ts` — уведомления о заявках; ошибка Telegram не ломает сохранение заявки.
@@ -36,16 +42,25 @@ Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind CSS 4, Framer M
 - Новые npm-зависимости, правки `docker-compose*.yml` и пуш в `main` — только после согласования.
 - Секреты только в `.env`. В репозитории плейсхолдеры (`example.com`).
 - Порт PostgreSQL наружу не публиковать.
-- Дизайн-система в `src/app/globals.css` (`--accent`, `--ink`, `.card-bg`, `.btn-primary`, `.input-field`, `.promo-banner` и др.). Новые цвета не вводить.
+- Дизайн-система в `src/app/globals.css`, стиль по референсу oxylabs.io: белая основа, почти чёрный текст и кнопки, чёрные секции, пастельные пейзажи.
+  - Цвета только из токенов: `--ink`, `--ink-muted`, `--ink-subtle`, `--surface`, `--surface-muted`, `--border`, `--border-strong`, `--accent` (= чёрный), `--night*` для тёмных секций, `--haze/--sky/--meadow/--blush` только для иллюстраций. Новые цвета не вводить.
+  - Классы: `.btn-primary`, `.btn-secondary`, `.btn-inverse` (белая на тёмном), `.btn-sm`, `.card-bg`, `.input-field`, `.section-label` (пилюля над заголовком), `.heading-xl/lg/md`, `.lead`, `.section-dark`, `.glass-panel`, `.mono`, `.range-input`, `.rise`.
+  - Классы лежат в `@layer components`, поэтому утилиты Tailwind на том же элементе их перебивают.
+  - Радиусы — `--round-*` (не `--radius-*`, чтобы не ломать `rounded-lg` и т.п.).
+  - Шрифты: Onest и JetBrains Mono через `next/font/google` (раздаются с нашего домена). Для `npm run build` нужен доступ к Google Fonts.
+  - Картинки: SVG-пейзажи (`Landscape`) и `DotArt`. Чужие логотипы и фото людей не используем.
 
 ## Состояние
 Сделано: инфраструктура (порт БД закрыт, пароли из `.env`, Node 22, HEALTHCHECK, заголовки), сайт переписан под агентство: главная, 4 услуги, цены, калькулятор бюджета, гарантии, FAQ, «О нас», оферта, формы заявок.
 
 Требует подтверждения владельца (черновики, написанные без данных о компании):
 - Тексты «Принципы работы» на главной, «Гарантии» и «О нас».
+- Строка «Работаем в инструментах…» на главной (Яндекс.Директ, Метрика, Бизнес, Карты, поиск Google).
 - Оферта: сроки и порядок оплаты написаны общо, реквизитов нет, нужна проверка юристом.
 - Всплывающее окно «Остались вопросы?» при уходе со страницы.
 - Круглосуточная доступность в `contacts.ts`.
+
+В этой копии проекта нет `Dockerfile`, `docker-compose*.yml` и скриптов деплоя (оригиналы потерялись вместе с папкой на компьютере). `src/lib/telegram.ts`, `src/app/sitemap.ts`, `scripts/init-db.sql` и `.env.example` восстановлены по старой версии и адаптированы под текущую схему. Перед деплоем через Docker эти файлы нужно сделать заново.
 
 Дальше (по желанию): настоящие кейсы и отзывы (только реальные), блог для SEO, Яндекс Метрика, расширение таблицы `leads` (статусы заявок), админка просмотра заявок.
 
