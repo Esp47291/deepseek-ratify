@@ -22,7 +22,9 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_SSL: ${DATABASE_SSL:-true}
       SITE_URL: ${SITE_URL}
-      SESSION_SECRET: ${SESSION_SECRET:-}
+      # Без этих двух переменных кабинет владельца не открывается.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в окружении}
+      SESSION_SECRET: ${SESSION_SECRET:?Задайте SESSION_SECRET в окружении}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
