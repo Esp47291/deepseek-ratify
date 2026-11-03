@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { postClientMessageAction } from "@/app/r/[token]/actions";
+import Chat from "@/components/platform/Chat";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { Badge, Card, Empty, Stat } from "@/components/platform/ui";
 import { db } from "@/db";
 import { clients, ratings, reviews, taskItems, tasks, venues } from "@/db/schema";
+import { listMessages } from "@/lib/chat";
 import { guard } from "@/lib/db-guard";
 import {
   TASK_STATUS_LABELS,
@@ -103,6 +106,12 @@ export default async function ClientCabinetPage({
   const totalAccepted = items.filter((i) => i.status === "accepted").length;
   const totalItems = items.length;
 
+  // Переписка по каждому заданию — без мессенджеров.
+  const chatByTask = new Map<number, Awaited<ReturnType<typeof listMessages>>>();
+  for (const task of taskList) {
+    chatByTask.set(task.id, await guard(() => listMessages(task.id), []));
+  }
+
   return (
     <PlatformShell viewer={client.name} role="заказчик">
       <div className="space-y-6">
@@ -197,6 +206,41 @@ export default async function ClientCabinetPage({
                     <p className="mt-2 text-xs text-[var(--ink-subtle)]">
                       {formatDate(task.dueAt)} · {formatRub(money.clientTotal)}
                     </p>
+
+                    <details
+                      className="mt-3 border-t border-[var(--border)] pt-3"
+                      open={(chatByTask.get(task.id)?.length ?? 0) > 0}
+                    >
+                      <summary className="cursor-pointer text-xs text-[var(--ink-muted)]">
+                        Чат по заданию{chatByTask.get(task.id)?.length ? ` (${chatByTask.get(task.id)!.length})` : ""}
+                      </summary>
+                      <div className="mt-3">
+                        <Chat
+                          messages={chatByTask.get(task.id) ?? []}
+                          viewer="client"
+                          hint="Задайте вопрос по работе — ответ придёт сюда, без звонков и мессенджеров."
+                          composer={
+                            <form action={postClientMessageAction} className="flex items-end gap-2">
+                              <input type="hidden" name="token" value={token} />
+                              <input type="hidden" name="taskId" value={task.id} />
+                              <textarea
+                                name="body"
+                                rows={2}
+                                required
+                                placeholder="Сообщение исполнителю"
+                                className="min-h-[44px] w-full resize-y rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+                              />
+                              <button
+                                type="submit"
+                                className="shrink-0 rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm hover:border-[var(--ink)]"
+                              >
+                                Отправить
+                              </button>
+                            </form>
+                          }
+                        />
+                      </div>
+                    </details>
                   </li>
                 );
               })}

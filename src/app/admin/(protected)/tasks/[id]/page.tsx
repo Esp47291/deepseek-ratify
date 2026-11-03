@@ -2,11 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
-import { rateTaskAction, reviewItemAction } from "@/app/admin/(protected)/actions";
+import {
+  postOwnerMessageAction,
+  rateTaskAction,
+  reviewItemAction,
+} from "@/app/admin/(protected)/actions";
+import Chat from "@/components/platform/Chat";
 import { Badge, Card, Empty, Stat } from "@/components/platform/ui";
 import { db } from "@/db";
 import { clients, ratings, reviews, taskItems, tasks, venues, workers } from "@/db/schema";
 import { ensureAdmin } from "@/lib/auth";
+import { listMessages } from "@/lib/chat";
 import { guard } from "@/lib/db-guard";
 import {
   ITEM_STATUS_LABELS,
@@ -119,6 +125,8 @@ export default async function AdminTaskPage({
   const alreadyRatedWorker = taskRatings.some((r) => r.subjectType === "worker");
   const alreadyRatedClient = taskRatings.some((r) => r.subjectType === "client");
 
+  const chat = await guard(() => listMessages(taskId), []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -158,6 +166,35 @@ export default async function AdminTaskPage({
           </p>
         </Card>
       )}
+
+      <Card title="Чат по заданию">
+        <p className="mb-3 text-xs text-[var(--ink-subtle)]">
+          Переписка по работе — здесь, а не в Telegram. Видят все три стороны.
+        </p>
+        <Chat
+          messages={chat}
+          viewer="owner"
+          hint="Сообщений пока нет. Напишите исполнителю или заказчику — они увидят это в своём кабинете."
+          composer={
+            <form action={postOwnerMessageAction} className="flex items-end gap-2">
+              <input type="hidden" name="taskId" value={task.id} />
+              <textarea
+                name="body"
+                rows={2}
+                required
+                placeholder="Сообщение исполнителю или заказчику"
+                className="min-h-[44px] w-full resize-y rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+              />
+              <button
+                type="submit"
+                className="shrink-0 rounded-[var(--round-sm)] bg-[var(--ink)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Отправить
+              </button>
+            </form>
+          }
+        />
+      </Card>
 
       <div className="space-y-4">
         {grouped.size === 0 && <Empty>В задании нет позиций.</Empty>}

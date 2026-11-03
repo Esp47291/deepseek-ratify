@@ -3,10 +3,10 @@ import { desc, eq, sql } from "drizzle-orm";
 import { createWorkerAction, toggleWorkerBlockAction } from "@/app/admin/(protected)/actions";
 import { Badge, Card, Empty } from "@/components/platform/ui";
 import { db } from "@/db";
-import { ratings, taskItems, tasks, workers } from "@/db/schema";
+import { ratings, taskItems, tasks, workerServices, workers } from "@/db/schema";
 import { ensureAdmin } from "@/lib/auth";
 import { guard } from "@/lib/db-guard";
-import { formatRating, summarizeRatings } from "@/lib/platform";
+import { formatRating, formatRub, platformLabel, summarizeRatings } from "@/lib/platform";
 
 export const metadata: Metadata = {
   title: "Исполнители",
@@ -91,6 +91,32 @@ export default async function AdminWorkersPage() {
 
   const completedByWorker = new Map(completed.map((r) => [r.workerId, r.count]));
 
+  // Биржа: что исполнители предлагают и по какой ставке.
+  const services = await guard(
+    () =>
+      db
+        .select({
+          id: workerServices.id,
+          workerId: workerServices.workerId,
+          title: workerServices.title,
+          platform: workerServices.platform,
+          rate: workerServices.rate,
+          active: workerServices.active,
+        })
+        .from(workerServices)
+        .orderBy(desc(workerServices.createdAt)),
+    []
+  );
+
+  const servicesByWorker = new Map<number, typeof services>();
+  for (const service of services) {
+    const bucket = servicesByWorker.get(service.workerId) ?? [];
+    bucket.push(service);
+    servicesByWorker.set(service.workerId, bucket);
+  }
+
+  const activeServices = services.filter((s) => s.active === 1);
+
   return (
     <div className="space-y-6">
       <div>
@@ -121,6 +147,34 @@ export default async function AdminWorkersPage() {
         </form>
       </Card>
 
+      <Card title="Биржа: что предлагают исполнители">
+        {activeServices.length === 0 ? (
+          <Empty>
+            Пока никто не выставил услуги. Исполнитель добавляет их сам в своём кабинете —
+            (ссылка в списке ниже).
+          </Empty>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {activeServices.map((service) => {
+              const owner = list.find((w) => w.id === service.workerId);
+              return (
+                <li key={service.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm text-[var(--ink)]">{service.title}</p>
+                    <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                      {owner?.name ?? "—"} · {platformLabel(service.platform)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-[var(--ink-subtle)]">
+                    просит {formatRub(service.rate)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
       <Card title="Все исполнители">
         {list.length === 0 ? (
           <Empty>Пока ни одного исполнителя.</Empty>
@@ -144,6 +198,15 @@ export default async function AdminWorkersPage() {
                       {worker.telegram ? `${worker.telegram} · ` : ""}
                       {formatRating(summary)}
                     </p>
+                    {servicesByWorker.get(worker.id)?.length ? (
+                      <p className="mt-1 text-xs text-[var(--ink-subtle)]">
+                        на бирже:{" "}
+                        {servicesByWorker
+                          .get(worker.id)!
+                          .map((s) => `${s.title} (${formatRub(s.rate)})`)
+                          .join(", ")}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

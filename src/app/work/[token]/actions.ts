@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { taskItems, tasks, workers } from "@/db/schema";
+import { taskItems, tasks, workerServices, workers } from "@/db/schema";
+import { postMessage } from "@/lib/chat";
 
 async function workerByToken(token: string) {
   if (!token) return null;
@@ -141,6 +142,72 @@ export async function releaseTaskAction(formData: FormData): Promise<void> {
     .update(tasks)
     .set({ workerId: null, status: "open", takenAt: null })
     .where(and(eq(tasks.id, taskId), eq(tasks.workerId, worker.id)));
+
+  revalidatePath(`/work/${token}`);
+}
+
+// ---------- Чат ----------
+
+/** Сообщение исполнителя в чат своего задания. */
+export async function postWorkerMessageAction(formData: FormData): Promise<void> {
+  const token = String(formData.get("token") ?? "");
+  const taskId = Number(formData.get("taskId") ?? 0);
+  const body = String(formData.get("body") ?? "").trim();
+
+  const worker = await workerByToken(token);
+  if (!worker || worker.blockedAt || !taskId || !body) return;
+
+  // Писать можно только в задание, которое исполнитель взял сам.
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workerId, worker.id)));
+  if (!task) return;
+
+  await postMessage({ taskId, role: "worker", name: worker.name, body });
+
+  revalidatePath(`/work/${token}`);
+}
+
+// ---------- Услуги на бирже ----------
+
+/** Добавить услугу в свой профиль на бирже. */
+export async function addServiceAction(formData: FormData): Promise<void> {
+  const token = String(formData.get("token") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const platform = String(formData.get("platform") ?? "yandex");
+  const rate = Number(formData.get("rate") ?? 0);
+
+  const worker = await workerByToken(token);
+  if (!worker || worker.blockedAt || !title) return;
+
+  await db.insert(workerServices).values({
+    workerId: worker.id,
+    platform: platform.slice(0, 20),
+    title: title.slice(0, 200),
+    description: description ? description.slice(0, 2000) : null,
+    rate: Number.isFinite(rate) && rate >= 0 ? Math.trunc(rate) : 0,
+  });
+
+  revalidatePath(`/work/${token}`);
+}
+
+/** Скрыть или вернуть услугу в профиле. */
+export async function toggleServiceAction(formData: FormData): Promise<void> {
+  const token = String(formData.get("token") ?? "");
+  const serviceId = Number(formData.get("serviceId") ?? 0);
+  const active = String(formData.get("active") ?? "1") === "1";
+
+  const worker = await workerByToken(token);
+  if (!worker || !serviceId) return;
+
+  await db
+    .update(workerServices)
+    .set({ active: active ? 1 : 0 })
+    .where(
+      and(eq(workerServices.id, serviceId), eq(workerServices.workerId, worker.id))
+    );
 
   revalidatePath(`/work/${token}`);
 }

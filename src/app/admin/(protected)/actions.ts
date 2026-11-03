@@ -6,6 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   clients,
+  messages,
   ratings,
   reviews,
   taskItems,
@@ -14,6 +15,7 @@ import {
   workers,
 } from "@/db/schema";
 import { isAdmin, newToken } from "@/lib/auth";
+import { postMessage } from "@/lib/chat";
 
 /** Любое действие владельца требует активной сессии. */
 async function assertAdmin(): Promise<void> {
@@ -324,6 +326,29 @@ export async function rateTaskAction(formData: FormData): Promise<void> {
     .onConflictDoNothing();
 
   revalidatePath(`/admin/tasks/${taskId}`);
+}
+
+// ---------- Чат ----------
+
+/** Сообщение владельца в чат задания. */
+export async function postOwnerMessageAction(formData: FormData): Promise<void> {
+  await assertAdmin();
+
+  const taskId = number(formData, "taskId");
+  const body = text(formData, "body", 4000);
+  if (!taskId || !body) return;
+
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(eq(tasks.id, taskId));
+  if (!task) return;
+
+  await postMessage({ taskId, role: "owner", name: "Владелец", body });
+
+  revalidatePath(`/admin/tasks/${taskId}`);
+  revalidatePath("/r");
+  revalidatePath("/work");
 }
 
 /** Удаление задания — только пока работа не начата. */

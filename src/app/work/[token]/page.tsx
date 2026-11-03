@@ -1,18 +1,38 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { saveAnswerAction, releaseTaskAction, submitTaskAction, takeTaskAction } from "@/app/work/[token]/actions";
+import {
+  addServiceAction,
+  postWorkerMessageAction,
+  releaseTaskAction,
+  saveAnswerAction,
+  submitTaskAction,
+  takeTaskAction,
+  toggleServiceAction,
+} from "@/app/work/[token]/actions";
+import Chat from "@/components/platform/Chat";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { Badge, Card, Empty, Stat } from "@/components/platform/ui";
 import { db } from "@/db";
-import { ratings, reviews, taskItems, tasks, venues, workers } from "@/db/schema";
+import {
+  ratings,
+  reviews,
+  taskItems,
+  tasks,
+  venues,
+  workerServices,
+  workers,
+} from "@/db/schema";
 import { guard } from "@/lib/db-guard";
+import { listMessages } from "@/lib/chat";
 import {
   ITEM_STATUS_LABELS,
+  PLATFORMS,
   TASK_STATUS_LABELS,
   formatDate,
   formatRating,
   formatRub,
+  platformLabel,
   plural,
   summarizeRatings,
 } from "@/lib/platform";
@@ -134,6 +154,23 @@ export default async function WorkerPage({
     myItems.map((i) => ({ status: i.status, revisionCount: i.revisionCount })),
     myTasks.filter((t) => t.status === "accepted").length
   );
+
+  // Услуги, которые исполнитель выставил на биржу.
+  const services = await guard(
+    () =>
+      db
+        .select()
+        .from(workerServices)
+        .where(eq(workerServices.workerId, worker.id))
+        .orderBy(desc(workerServices.createdAt)),
+    []
+  );
+
+  // Чаты по каждому заданию одним запросом, чтобы не ходить в базу в цикле.
+  const chatByTask = new Map<number, Awaited<ReturnType<typeof listMessages>>>();
+  for (const task of myTasks) {
+    chatByTask.set(task.id, await guard(() => listMessages(task.id), []));
+  }
 
   const itemsByTask = new Map<number, typeof myItems>();
   for (const item of myItems) {
@@ -341,11 +378,136 @@ export default async function WorkerPage({
                         )}
                       </div>
                     )}
+
+                    <div className="mt-5 border-t border-[var(--border)] pt-4">
+                      <p className="mb-2 text-xs font-medium text-[var(--ink)]">Чат по заданию</p>
+                      <Chat
+                        messages={chatByTask.get(task.id) ?? []}
+                        viewer="worker"
+                        hint="Вопросы по заданию — здесь. Владелец увидит их в кабинете задания."
+                        composer={
+                          <form action={postWorkerMessageAction} className="flex items-end gap-2">
+                            <input type="hidden" name="token" value={token} />
+                            <input type="hidden" name="taskId" value={task.id} />
+                            <textarea
+                              name="body"
+                              rows={2}
+                              required
+                              placeholder="Сообщение владельцу"
+                              className="min-h-[44px] w-full resize-y rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+                            />
+                            <button
+                              type="submit"
+                              className="shrink-0 rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm hover:border-[var(--ink)]"
+                            >
+                              Отправить
+                            </button>
+                          </form>
+                        }
+                      />
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
+        </Card>
+
+        <Card title="Мои услуги на бирже">
+          <p className="mb-3 text-xs text-[var(--ink-subtle)]">
+            Владелец видит этот список и решает, кому давать задания. Ставка — то,
+            сколько вы просите за одну позицию; в задании фиксируется точная цифра.
+          </p>
+
+          {services.length === 0 ? (
+            <Empty>Пока ни одной услуги. Добавьте хотя бы одну — так вас проще заметить.</Empty>
+          ) : (
+            <ul className="mb-4 divide-y divide-[var(--border)]">
+              {services.map((service) => (
+                <li key={service.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 text-sm font-medium text-[var(--ink)]">
+                      {service.title}
+                      {service.active === 0 && <Badge>скрыто</Badge>}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                      {platformLabel(service.platform)} · {formatRub(service.rate)} за позицию
+                    </p>
+                    {service.description && (
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--ink-subtle)]">
+                        {service.description}
+                      </p>
+                    )}
+                  </div>
+                  <form action={toggleServiceAction}>
+                    <input type="hidden" name="token" value={token} />
+                    <input type="hidden" name="serviceId" value={service.id} />
+                    <input type="hidden" name="active" value={service.active === 1 ? "0" : "1"} />
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-[var(--border-strong)] px-2 py-1 text-xs text-[var(--ink-muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                    >
+                      {service.active === 1 ? "скрыть" : "показать"}
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form action={addServiceAction} className="grid gap-2 border-t border-[var(--border)] pt-4 sm:grid-cols-2">
+            <input type="hidden" name="token" value={token} />
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-xs text-[var(--ink-muted)]">Название *</span>
+              <input
+                name="title"
+                required
+                placeholder="Ответы на отзывы в Яндекс.Картах"
+                className="w-full rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs text-[var(--ink-muted)]">Площадка</span>
+              <select
+                name="platform"
+                defaultValue="yandex"
+                className="w-full rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm"
+              >
+                {PLATFORMS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs text-[var(--ink-muted)]">Ставка за позицию, ₽</span>
+              <input
+                type="number"
+                name="rate"
+                min={0}
+                defaultValue={250}
+                className="w-full rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-xs text-[var(--ink-muted)]">Коротко о себе</span>
+              <textarea
+                name="description"
+                rows={2}
+                placeholder="Опыт, сроки, языки"
+                className="w-full rounded-[var(--round-sm)] border border-[var(--border-strong)] px-3 py-2 text-sm outline-none focus:border-[var(--ink)]"
+              />
+            </label>
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                className="rounded-[var(--round-md)] border border-[var(--border-strong)] px-4 py-2 text-sm hover:border-[var(--ink)]"
+              >
+                Добавить услугу
+              </button>
+            </div>
+          </form>
         </Card>
       </div>
     </PlatformShell>
