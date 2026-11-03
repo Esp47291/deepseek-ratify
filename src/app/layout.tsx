@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Onest, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -8,6 +9,19 @@ import SocialFloatingWidget from "@/components/SocialFloatingWidget";
 import { EMAIL, PHONE_E164 } from "@/lib/contacts";
 
 const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+
+// Variable fonts, self-hosted by next/font: downloaded at build time, visitors never hit Google.
+const onest = Onest({
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+  variable: "--font-onest",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -50,20 +64,14 @@ const organizationJsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={`${onest.variable} ${jetbrainsMono.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className="bg-[var(--surface-warm)] text-zinc-900 antialiased">
+      <body className="bg-[var(--surface-warm)] text-[var(--ink)] antialiased">
         <Header />
         {children}
         <Footer />

@@ -1,367 +1,254 @@
-"use client";
-
-import { useState } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ChevronDown,
-  CheckCircle,
-  Loader2,
-  Send,
-  Phone,
-  Mail,
-  MessageCircle,
-  Eye,
-  ShieldCheck,
-  MessagesSquare,
-} from "lucide-react";
-import OrderModal from "@/components/OrderModal";
+import { ArrowRight, ArrowUpRight, Mail, MessageCircle, Phone, Send } from "lucide-react";
+import DotArt, { type DotArtShape } from "@/components/DotArt";
 import ExitIntentModal from "@/components/ExitIntentModal";
-import AnimatedSection from "@/components/AnimatedSection";
-import ServiceIcon from "@/components/ServiceIcon";
-import { services, processSteps, faqs } from "@/lib/services-data";
-import { formatPhoneMask, isCompletePhone, normalizePhoneDigits } from "@/lib/phone";
+import Landscape from "@/components/Landscape";
+import ServiceCta from "@/components/ServiceCta";
+import ContactForm from "@/components/home/ContactForm";
+import FaqList from "@/components/home/FaqList";
+import HeroConsole from "@/components/home/HeroConsole";
+import ServicesShowcase from "@/components/home/ServicesShowcase";
 import { EMAIL, EMAIL_MAILTO, PHONE_DISPLAY, PHONE_TEL, TELEGRAM_HANDLE, TELEGRAM_URL } from "@/lib/contacts";
+import { faqs, processSteps } from "@/lib/services-data";
 
-const principles = [
+// Tools we work in (not clients): names only, no third-party logos.
+const platforms = ["Яндекс.Директ", "Яндекс Метрика", "Яндекс.Бизнес", "Яндекс Карты", "Поиск Google"];
+
+// Draft copy, awaiting owner confirmation (see CLAUDE.md).
+const principles: { shape: DotArtShape; title: string; desc: string }[] = [
   {
-    icon: <Eye className="w-6 h-6" />,
+    shape: "report",
     title: "Прозрачная отчётность",
     desc: "Регулярно показываем расходы, заявки, позиции и трафик, а не общие слова.",
   },
   {
-    icon: <ShieldCheck className="w-6 h-6" />,
+    shape: "shield",
     title: "Честные методы",
     desc: "Без накрутки поведенческих факторов и покупных отзывов: только то, что не подведёт ваш сайт.",
   },
   {
-    icon: <MessagesSquare className="w-6 h-6" />,
+    shape: "chat",
     title: "Связь в мессенджерах",
     desc: "Пишите в Telegram, WhatsApp, Max или VK, чтобы быстро уточнять детали по задаче.",
   },
 ];
 
+const shortcuts = [
+  {
+    word: "/калькулятор",
+    title: "Посчитать бюджет",
+    desc: "Сколько кликов, заявок и выручки даст реклама при ваших цифрах.",
+    href: "/calculator",
+  },
+  {
+    word: "/цены",
+    title: "Посмотреть цены",
+    desc: "Что стоит фиксированно, а что считаем после короткого брифа.",
+    href: "/prices",
+  },
+];
+
+const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
+
 export default function HomePage() {
-  const [orderOpen, setOrderOpen] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", message: "" });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleContactSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.phone) {
-      setError("Заполните имя и телефон");
-      return;
-    }
-    if (!isCompletePhone(form.phone)) {
-      setError("Введите номер полностью: +7 (999) 123-45-67");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          phone: `+${normalizePhoneDigits(form.phone)}`,
-          type: "contact",
-        }),
-      });
-      if (res.ok) {
-        setSuccess(true);
-        setForm({ name: "", phone: "", message: "" });
-      } else {
-        setError("Ошибка отправки. Попробуйте ещё раз.");
-      }
-    } catch {
-      setError("Ошибка отправки. Попробуйте ещё раз.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <main className="overflow-x-hidden">
+    <main className="overflow-x-clip">
       <ExitIntentModal />
-      <OrderModal isOpen={orderOpen} onClose={() => setOrderOpen(false)} />
 
       {/* HERO */}
-      <section className="hero-dark relative pt-28 pb-20 lg:pt-36 lg:pb-28 overflow-hidden">
-        <div className="relative max-w-4xl mx-auto px-5 sm:px-8 hero-centered">
-          <AnimatedSection delay={0}>
-            <p className="section-label">Интернет-маркетинг</p>
-          </AnimatedSection>
-          <AnimatedSection delay={80}>
-            <h1 className="heading-xl mb-6">
-              Приводим клиентов <span className="accent-text">из поиска и рекламы</span>
-            </h1>
-          </AnimatedSection>
-          <AnimatedSection delay={160}>
-            <p className="text-lg text-white/70 max-w-2xl mb-8 leading-relaxed">
-              Настраиваем Яндекс.Директ, продвигаем сайты в поиске, разбираем продукт и ведём карточки на картах.
-              Работаем честными методами и показываем цифры.
-            </p>
-          </AnimatedSection>
-          <AnimatedSection delay={240}>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                type="button"
-                onClick={() => setOrderOpen(true)}
-                className="btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5"
-              >
-                <span>Оставить заявку</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <Link href="/calculator" className="btn-secondary inline-flex items-center justify-center gap-2 px-7 py-3.5">
-                Рассчитать бюджет
-              </Link>
-            </div>
-          </AnimatedSection>
+      <section className="relative isolate overflow-hidden pb-16 pt-36 sm:pb-24 sm:pt-44">
+        <Landscape id="hero" variant="meadow" className="absolute inset-0 -z-10 h-full w-full" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-24 bg-gradient-to-b from-transparent to-white" aria-hidden="true" />
+
+        <div className="mx-auto max-w-[1240px] px-5 text-center sm:px-8">
+          <h1 className="heading-xl rise mx-auto max-w-[15ch]">Клиенты из поиска, рекламы и карт</h1>
+          <p className="lead rise mx-auto mt-6 max-w-[54ch]" style={delay(90)}>
+            Настраиваем Яндекс.Директ, продвигаем сайты, проводим аудит и ведём карточки в Яндекс.Бизнесе. Без накруток,
+            с понятными цифрами.
+          </p>
+          <div className="rise mt-9 flex flex-col justify-center gap-3 sm:flex-row" style={delay(180)}>
+            <ServiceCta label="Оставить заявку" className="btn-primary min-w-[200px]" />
+            <a
+              href={TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary min-w-[200px]"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              Написать в Telegram
+            </a>
+          </div>
+
+          <div className="rise mx-auto mt-16 max-w-[920px] sm:mt-24" style={delay(320)}>
+            <HeroConsole />
+          </div>
         </div>
-        <div className="hero-blend-edge" />
+      </section>
+
+      {/* PLATFORMS */}
+      <section className="border-b border-[var(--border)] bg-white">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-5 py-10 sm:px-8 lg:flex-row lg:items-center lg:gap-16">
+          <p className="shrink-0 text-[15px] leading-snug text-[var(--ink-muted)]">
+            Работаем в инструментах,
+            <br className="hidden lg:block" /> которыми пользуются ваши клиенты:
+          </p>
+          <ul className="flex flex-wrap items-center gap-x-10 gap-y-3">
+            {platforms.map((name) => (
+              <li key={name} className="text-lg font-medium tracking-[-0.02em] text-[var(--ink)]">
+                {name}
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       {/* SERVICES */}
-      <section className="py-20">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8">
-          <AnimatedSection>
-            <div className="text-center mb-12">
-              <span className="section-label">Услуги</span>
-              <h2 className="heading-lg">Чем мы занимаемся</h2>
-            </div>
-          </AnimatedSection>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {services.map((s, i) => (
-              <AnimatedSection key={s.slug} delay={i * 80}>
-                <Link href={`/services/${s.slug}`} className="card-bg card-bg-hover rounded-2xl p-6 flex gap-4 h-full">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-[var(--accent)] flex items-center justify-center flex-shrink-0">
-                    <ServiceIcon name={s.icon} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-zinc-900 mb-1">{s.title}</h3>
-                    <p className="text-sm text-zinc-500 leading-relaxed mb-3">{s.short}</p>
-                    <span className="text-sm font-semibold text-[var(--accent)]">{s.price}</span>
-                  </div>
-                </Link>
-              </AnimatedSection>
-            ))}
-          </div>
+      <section className="bg-white py-24 sm:py-32">
+        <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
+          <ServicesShowcase />
         </div>
       </section>
 
       {/* PROCESS */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8">
-          <AnimatedSection>
-            <div className="text-center mb-12">
-              <span className="section-label">Как мы работаем</span>
-              <h2 className="heading-lg">От заявки до результата</h2>
-            </div>
-          </AnimatedSection>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <section className="bg-white pb-24 sm:pb-32">
+        <div className="mx-auto grid max-w-[1240px] gap-12 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+          <div>
+            <span className="section-label">Как мы работаем</span>
+            <h2 className="heading-lg max-w-[14ch]">От заявки до первых отчётов</h2>
+            <p className="lead mt-5 max-w-[40ch]">
+              Сначала разбираемся в задаче, потом называем стоимость и сроки. Никаких работ без согласованного плана.
+            </p>
+          </div>
+          <ol className="grid gap-x-10 sm:grid-cols-2">
             {processSteps.map((step, i) => (
-              <AnimatedSection key={step.title} delay={i * 80}>
-                <div className="card-bg rounded-xl p-6 h-full">
-                  <div className="text-3xl font-bold text-[var(--accent)] mb-3 tabular-nums">{i + 1}</div>
-                  <h3 className="font-bold text-zinc-900 mb-2">{step.title}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{step.desc}</p>
-                </div>
-              </AnimatedSection>
+              <li key={step.title} className="border-t border-[var(--ink)] pb-10 pt-5">
+                <span className="mono text-sm text-[var(--ink-subtle)]">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-6 text-xl font-medium text-[var(--ink)]">{step.title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink-muted)]">{step.desc}</p>
+              </li>
             ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* SHORTCUTS */}
+      <section className="bg-white pb-24 sm:pb-32">
+        <div className="mx-auto grid max-w-[1240px] gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-20">
+          <div>
+            <h2 className="heading-lg max-w-[14ch]">Начните с цифр, а не со звонка</h2>
+            <p className="lead mt-5 max-w-[40ch]">Посчитайте бюджет или посмотрите цены. Без обязательств.</p>
           </div>
-        </div>
-      </section>
-
-      {/* PRINCIPLES */}
-      <section className="py-20">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8">
-          <AnimatedSection>
-            <div className="text-center mb-12">
-              <span className="section-label">Принципы</span>
-              <h2 className="heading-lg">На чём строится работа</h2>
-            </div>
-          </AnimatedSection>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {principles.map((p, i) => (
-              <AnimatedSection key={p.title} delay={i * 80}>
-                <div className="card-bg rounded-xl p-6 h-full">
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-[var(--accent)] flex items-center justify-center mb-4">
-                    {p.icon}
-                  </div>
-                  <h3 className="font-bold text-zinc-900 mb-2">{p.title}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{p.desc}</p>
-                </div>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CALCULATOR TEASER */}
-      <section className="pb-20">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8">
-          <AnimatedSection>
-            <div className="promo-banner flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Посчитайте рекламный бюджет</h2>
-                <p className="text-white/70 max-w-xl">
-                  Введите цену клика, конверсию и средний чек — калькулятор покажет, сколько заявок и выручки
-                  получится при ваших цифрах.
-                </p>
-              </div>
-              <Link href="/calculator" className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap">
-                <span>Открыть калькулятор</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-3xl mx-auto px-5 sm:px-8">
-          <AnimatedSection>
-            <div className="text-center mb-10">
-              <span className="section-label">Вопросы</span>
-              <h2 className="heading-lg">Частые вопросы</h2>
-            </div>
-          </AnimatedSection>
-          <div className="space-y-3">
-            {faqs.slice(0, 4).map((f, i) => (
-              <div key={f.q} className="card-bg rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between gap-4 text-left px-5 py-4"
-                  aria-expanded={openFaq === i}
-                >
-                  <span className="font-semibold text-zinc-900 text-sm">{f.q}</span>
-                  <ChevronDown
-                    className={`w-4 h-4 flex-shrink-0 text-zinc-400 transition-transform ${openFaq === i ? "rotate-180" : ""}`}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {shortcuts.map((s) => (
+              <Link
+                key={s.href}
+                href={s.href}
+                className="card-bg card-bg-hover group flex min-h-[200px] flex-col justify-between p-6"
+              >
+                <span className="mono text-[1.75rem] leading-none tracking-[-0.04em] text-[var(--border-strong)] transition-colors group-hover:text-[var(--ink-subtle)]">
+                  {s.word}
+                </span>
+                <span className="mt-8 flex items-end justify-between gap-4">
+                  <span>
+                    <span className="block text-[17px] font-medium text-[var(--ink)]">{s.title}</span>
+                    <span className="mt-1 block text-sm leading-snug text-[var(--ink-muted)]">{s.desc}</span>
+                  </span>
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 text-[var(--ink)] transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
                   />
-                </button>
-                <div className={`faq-answer ${openFaq === i ? "open" : ""}`}>
-                  <p className="px-5 pb-4 text-sm text-zinc-500 leading-relaxed">{f.a}</p>
-                </div>
-              </div>
+                </span>
+              </Link>
             ))}
           </div>
-          <div className="text-center mt-6">
-            <Link href="/faq" className="text-sm font-semibold text-[var(--accent)]">
-              Все вопросы →
+        </div>
+      </section>
+
+      {/* PRINCIPLES + FAQ (dark) */}
+      <section className="section-dark py-24 sm:py-32">
+        <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="section-label">Принципы</span>
+            <h2 className="heading-lg">Честно по умолчанию</h2>
+            <p className="mt-5 text-lg leading-relaxed text-[var(--night-muted)]">
+              Не обещаем того, что нельзя гарантировать, и не используем методы, из-за которых сайт или карточка могут
+              попасть под санкции поисковиков.
+            </p>
+            <Link href="/guarantees" className="btn-secondary btn-sm mt-8">
+              Что мы гарантируем
             </Link>
+          </div>
+
+          <ul className="mt-16 grid gap-3 md:grid-cols-3">
+            {principles.map((p) => (
+              <li
+                key={p.title}
+                className="rounded-[var(--round-lg)] border border-[var(--night-line)] bg-[var(--night-raised)] p-6"
+              >
+                <DotArt shape={p.shape} className="mx-auto mb-6 h-40 w-full max-w-[260px]" />
+                <h3 className="text-lg font-medium text-[var(--night-ink)]">{p.title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--night-muted)]">{p.desc}</p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-28 grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
+            <div>
+              <h2 className="heading-lg">Частые вопросы</h2>
+              <p className="mt-5 max-w-[36ch] text-lg leading-relaxed text-[var(--night-muted)]">
+                Не нашли ответ? Спросите в Telegram, ответим по делу.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="btn-inverse btn-sm">
+                  Задать вопрос
+                </a>
+                <Link href="/faq" className="btn-secondary btn-sm">
+                  Все вопросы
+                </Link>
+              </div>
+            </div>
+            <FaqList items={faqs} />
           </div>
         </div>
       </section>
 
       {/* CONTACT */}
-      <section className="py-20" id="contact">
-        <div className="max-w-5xl mx-auto px-5 sm:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-          <AnimatedSection>
-            <span className="section-label">Связаться</span>
-            <h2 className="heading-lg mb-4">Расскажите о задаче</h2>
-            <p className="text-zinc-500 mb-8 leading-relaxed">
-              Оставьте контакты, и мы вернёмся с вопросами и предложением. Или напишите напрямую.
+      <section id="contact" className="scroll-mt-24 bg-white py-24 sm:py-32">
+        <div className="mx-auto grid max-w-[1240px] gap-6 px-5 sm:px-8 lg:grid-cols-2 lg:gap-10">
+          <div className="lg:py-6 lg:pr-8">
+            <h2 className="heading-lg">Расскажите о задаче</h2>
+            <p className="lead mb-10 mt-5 max-w-[44ch]">
+              Оставьте контакты: вернёмся с уточняющими вопросами и предложим, с чего начать.
             </p>
-            <ul className="space-y-4">
-              <li>
-                <a href={PHONE_TEL} className="flex items-center gap-3 text-zinc-700 hover:text-zinc-900">
-                  <Phone className="w-5 h-5 text-[var(--accent)]" />
-                  {PHONE_DISPLAY}
-                </a>
-              </li>
-              <li>
-                <a href={EMAIL_MAILTO} className="flex items-center gap-3 text-zinc-700 hover:text-zinc-900">
-                  <Mail className="w-5 h-5 text-[var(--accent)]" />
-                  {EMAIL}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={TELEGRAM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 text-zinc-700 hover:text-zinc-900"
-                >
-                  <MessageCircle className="w-5 h-5 text-[var(--accent)]" />
-                  {TELEGRAM_HANDLE}
-                </a>
-              </li>
-            </ul>
-          </AnimatedSection>
+            <ContactForm />
+          </div>
 
-          <AnimatedSection delay={100}>
-            <div className="card-bg rounded-2xl p-6 sm:p-8">
-              {success ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-zinc-900 mb-2">Заявка принята!</h3>
-                  <p className="text-zinc-500 text-sm">Мы свяжемся с вами в ближайшее время.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleContactSubmit} className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Ваше имя"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="+7 (999) 123-45-67"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: formatPhoneMask(e.target.value) })}
-                    onFocus={() => {
-                      if (!form.phone) setForm({ ...form, phone: "+7 (" });
-                    }}
-                    onBlur={() => {
-                      if (form.phone === "+7" || form.phone === "+7 (" || form.phone === "+7 ()") {
-                        setForm({ ...form, phone: "" });
-                      }
-                    }}
-                    maxLength={18}
-                    className="input-field"
-                    required
-                  />
-                  <textarea
-                    rows={4}
-                    placeholder="Коротко о задаче (необязательно)"
-                    value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    className="input-field"
-                  />
-                  {error && (
-                    <p className="text-red-600 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-                      {error}
-                    </p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+          <div className="relative isolate flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] p-6 sm:p-10">
+            <Landscape id="contact" variant="dawn" className="absolute inset-0 -z-10 h-full w-full" />
+            <p className="max-w-[18ch] text-[clamp(1.75rem,3.2vw,2.5rem)] font-medium leading-[1.12] tracking-[-0.03em] text-[var(--ink)]">
+              Сначала разберёмся в задаче, потом назовём стоимость и сроки.
+            </p>
+            <ul className="mt-10 space-y-2">
+              {[
+                { icon: Phone, label: PHONE_DISPLAY, href: PHONE_TEL, external: false },
+                { icon: Mail, label: EMAIL, href: EMAIL_MAILTO, external: false },
+                { icon: MessageCircle, label: TELEGRAM_HANDLE, href: TELEGRAM_URL, external: true },
+              ].map(({ icon: Icon, label, href, external }) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/60 px-4 py-3 text-[15px] text-[var(--ink)] backdrop-blur-md transition-colors hover:bg-white/85"
                   >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
-                    <span>{loading ? "Отправляем..." : "Отправить"}</span>
-                  </button>
-                  <p className="text-center text-xs text-zinc-500">
-                    Нажимая кнопку, вы соглашаетесь с{" "}
-                    <Link href="/privacy" className="text-[var(--accent)] hover:underline">
-                      политикой конфиденциальности
-                    </Link>
-                  </p>
-                </form>
-              )}
-            </div>
-          </AnimatedSection>
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{label}</span>
+                    {external && <ArrowUpRight className="ml-auto h-4 w-4 opacity-50" aria-hidden="true" />}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
     </main>
