@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Onest, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import ScrollToTop from "@/components/ScrollToTop";
-import SocialFloatingWidget from "@/components/SocialFloatingWidget";
+import SiteChrome from "@/components/SiteChrome";
 import { EMAIL, PHONE_E164 } from "@/lib/contacts";
 
 const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
@@ -72,11 +69,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body className="bg-[var(--surface-warm)] text-[var(--ink)] antialiased">
-        <Header />
-        {children}
-        <Footer />
-        <ScrollToTop />
-        <SocialFloatingWidget />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
