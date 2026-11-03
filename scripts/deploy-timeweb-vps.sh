@@ -10,11 +10,19 @@ APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$APP_DIR"
 
 if [[ ! -f .env ]]; then
-  echo "Создайте .env из .env.example и заполните SITE_URL, POSTGRES_PASSWORD, SESSION_SECRET"
+  echo "Создайте .env из .env.example и заполните SITE_URL, POSTGRES_PASSWORD, SESSION_SECRET, ADMIN_PASSWORD"
   cp -n .env.example .env 2>/dev/null || true
   echo "Файл .env создан — отредактируйте его и запустите скрипт снова."
   exit 1
 fi
+
+# Без этих трёх переменных контейнер не поднимется или кабинет не откроется.
+for required in SITE_URL POSTGRES_PASSWORD SESSION_SECRET ADMIN_PASSWORD; do
+  if ! grep -q "^${required}=.\+" .env; then
+    echo "Ошибка: в .env не задано ${required}" >&2
+    exit 1
+  fi
+done
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Установите Docker: https://docs.docker.com/engine/install/ubuntu/"
@@ -37,6 +45,14 @@ for i in $(seq 1 30); do
   fi
   sleep 2
 done
+
+# docker-entrypoint-initdb.d срабатывает только на ПУСТОМ томе. При повторном
+# деплое или после появления новых таблиц схема иначе останется старой.
+# init-db.sql идемпотентен, поэтому применяем его при каждом запуске.
+echo "==> Применение схемы и гарантий..."
+$COMPOSE exec -T db psql -U postgres -d app_db -v ON_ERROR_STOP=1 \
+  -f /docker-entrypoint-initdb.d/init-db.sql >/dev/null
+echo "OK: схема применена"
 
 echo "==> Проверка health..."
 sleep 3

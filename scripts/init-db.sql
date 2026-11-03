@@ -114,7 +114,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS task_items_task_review_uq ON task_items (task_
 -- Число возвратов на доработку: нужно для честной доли «с первого раза»
 ALTER TABLE task_items ADD COLUMN IF NOT EXISTS revision_count INTEGER NOT NULL DEFAULT 0;
 
--- ---------- Platform: ratings (append-only) ----------CREATE TABLE IF NOT EXISTS ratings (
+-- ---------- Platform: ratings (append-only) ----------
+CREATE TABLE IF NOT EXISTS ratings (
   id SERIAL PRIMARY KEY,
   subject_type TEXT NOT NULL,
   subject_id INTEGER NOT NULL,

@@ -54,17 +54,37 @@ else
 SITE_URL=${SITE_URL}
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 SESSION_SECRET=$(openssl rand -hex 32)
+ADMIN_PASSWORD=$(openssl rand -hex 16)
 DATABASE_SSL=false
 PORT=${PORT}
 TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
 TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
 TELEGRAM_PROXY=
 ENVEOF
+  echo "==> Пароль владельца для входа в /admin:"
+  grep '^ADMIN_PASSWORD=' "$APP_DIR/.env" | cut -d= -f2-
+  echo "    Сохраните его: в файле он есть, но больше нигде не покажется."
 fi
 
 echo "==> Сборка и запуск Docker Compose..."
 cd "$APP_DIR"
 docker compose up -d --build
+
+echo "==> Ожидание PostgreSQL..."
+for i in $(seq 1 30); do
+  if docker compose exec -T db pg_isready -U postgres -d app_db >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+# docker-entrypoint-initdb.d срабатывает только на ПУСТОМ томе. При повторном
+# деплое или после появления новых таблиц схема иначе останется старой.
+# init-db.sql идемпотентен, поэтому применяем его при каждом запуске.
+echo "==> Применение схемы и гарантий..."
+docker compose exec -T db psql -U postgres -d app_db -v ON_ERROR_STOP=1 \
+  -f /docker-entrypoint-initdb.d/init-db.sql >/dev/null
+echo "OK: схема применена"
 
 echo "==> Ожидание healthcheck..."
 for i in $(seq 1 36); do
