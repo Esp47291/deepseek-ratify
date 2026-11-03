@@ -256,6 +256,10 @@ export default async function ClientPage({
             <input type="hidden" name="clientId" value={client.id} />
 
             <div className="grid gap-3 sm:grid-cols-2">
+              <p className="text-xs text-[var(--ink-subtle)] sm:col-span-2">
+                Ставки по умолчанию — 650 ₽ заказчику и 250 ₽ исполнителю за ответ.
+                Меняйте их под площадку и условия заказчика: маржа считается от этих чисел.
+              </p>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs text-[var(--ink-muted)]">Название задания *</span>
                 <input
@@ -281,11 +285,11 @@ export default async function ClientPage({
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs text-[var(--ink-muted)]">Заказчику за позицию, ₽</span>
-                <input type="number" name="clientRate" min={0} defaultValue={0} className={inputClass} />
+                <input type="number" name="clientRate" min={0} defaultValue={650} className={inputClass} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs text-[var(--ink-muted)]">Исполнителю за позицию, ₽</span>
-                <input type="number" name="workerRate" min={0} defaultValue={0} className={inputClass} />
+                <input type="number" name="workerRate" min={0} defaultValue={250} className={inputClass} />
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-xs text-[var(--ink-muted)]">
