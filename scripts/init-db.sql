@@ -114,8 +114,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS task_items_task_review_uq ON task_items (task_
 -- Число возвратов на доработку: нужно для честной доли «с первого раза»
 ALTER TABLE task_items ADD COLUMN IF NOT EXISTS revision_count INTEGER NOT NULL DEFAULT 0;
 
--- ---------- Platform: ratings (append-only) ----------
-CREATE TABLE IF NOT EXISTS ratings (
+-- ---------- Platform: ratings (append-only) ----------CREATE TABLE IF NOT EXISTS ratings (
   id SERIAL PRIMARY KEY,
   subject_type TEXT NOT NULL,
   subject_id INTEGER NOT NULL,
@@ -145,3 +144,41 @@ DROP TRIGGER IF EXISTS ratings_no_mutation ON ratings;
 CREATE TRIGGER ratings_no_mutation
   BEFORE UPDATE OR DELETE ON ratings
   FOR EACH ROW EXECUTE FUNCTION ratings_forbid_mutation();
+
+-- ---------- Platform: chat ----------
+CREATE TABLE IF NOT EXISTS messages (
+  id SERIAL PRIMARY KEY,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  author_role TEXT NOT NULL,
+  author_name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS messages_task_idx ON messages (task_id, created_at);
+
+-- История разговора часть отчёта о работе: переписать её нельзя.
+CREATE OR REPLACE FUNCTION messages_forbid_mutation() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'messages are append-only: history must stay intact';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS messages_no_mutation ON messages;
+CREATE TRIGGER messages_no_mutation
+  BEFORE UPDATE OR DELETE ON messages
+  FOR EACH ROW EXECUTE FUNCTION messages_forbid_mutation();
+
+-- ---------- Platform: услуги исполнителя на бирже ----------
+CREATE TABLE IF NOT EXISTS worker_services (
+  id SERIAL PRIMARY KEY,
+  worker_id INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL DEFAULT 'yandex',
+  title TEXT NOT NULL,
+  description TEXT,
+  rate INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS worker_services_worker_idx ON worker_services (worker_id);

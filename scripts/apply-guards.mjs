@@ -33,6 +33,18 @@ CREATE TRIGGER ratings_no_mutation
 CREATE UNIQUE INDEX IF NOT EXISTS ratings_task_subject_uq
   ON ratings (task_id, subject_type, subject_id)
   WHERE task_id IS NOT NULL;
+
+-- История чата — часть отчёта о работе: переписать её нельзя.
+CREATE OR REPLACE FUNCTION messages_forbid_mutation() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'messages are append-only: history must stay intact';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS messages_no_mutation ON messages;
+CREATE TRIGGER messages_no_mutation
+  BEFORE UPDATE OR DELETE ON messages
+  FOR EACH ROW EXECUTE FUNCTION messages_forbid_mutation();
 `;
 
 const client = new pg.Client({
@@ -49,14 +61,17 @@ try {
 
   // Проверяем не «команда прошла», а что гарантия реально стоит.
   const { rows } = await client.query(
-    "select count(*)::int as n from pg_trigger where tgname = 'ratings_no_mutation'"
+    `select tgname from pg_trigger where tgname in ('ratings_no_mutation', 'messages_no_mutation')`
   );
 
-  if (rows[0].n !== 1) {
-    throw new Error("trigger ratings_no_mutation was not created");
+  const names = new Set(rows.map((r) => r.tgname));
+  for (const required of ["ratings_no_mutation", "messages_no_mutation"]) {
+    if (!names.has(required)) {
+      throw new Error(`trigger ${required} was not created`);
+    }
   }
 
-  console.log("guards applied: ratings is append-only, one rating per task");
+  console.log("guards applied: ratings and chat history are append-only");
 } catch (error) {
   console.error("failed to apply database guards:", error);
   process.exitCode = 1;

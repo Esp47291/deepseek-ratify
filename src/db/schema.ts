@@ -212,3 +212,53 @@ export const ratings = pgTable(
     ),
   ],
 );
+
+/**
+ * Чат по заданию — вместо переписки в Telegram.
+ *
+ * Сообщения не редактируются и не удаляются: история разговора — часть
+ * отчёта о работе. Привязаны к заданию, поэтому каждой стороне видно
+ * только то, что касается её задания.
+ *
+ * `authorRole`: 'owner' | 'worker' | 'client'.
+ */
+export const messages = pgTable(
+  "messages",
+  {
+    id: serial("id").primaryKey(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    authorRole: text("author_role").notNull(),
+    /** Имя на момент отправки: история не должна меняться задним числом */
+    authorName: text("author_name").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("messages_task_idx").on(table.taskId, table.createdAt)],
+);
+
+/**
+ * Услуги, которые исполнитель предлагает на бирже.
+ *
+ * Владелец видит этот список в кабинете и решает, кому давать задание.
+ * Ставка здесь — запрос исполнителя, а не обязательство: в задании
+ * фиксируется фактическая ставка.
+ */
+export const workerServices = pgTable(
+  "worker_services",
+  {
+    id: serial("id").primaryKey(),
+    workerId: integer("worker_id")
+      .notNull()
+      .references(() => workers.id, { onDelete: "cascade" }),
+    platform: text("platform").notNull().default("yandex"),
+    title: text("title").notNull(),
+    description: text("description"),
+    /** Сколько исполнитель просит за позицию, ₽ */
+    rate: integer("rate").notNull().default(0),
+    active: integer("active").notNull().default(1),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("worker_services_worker_idx").on(table.workerId)],
+);
