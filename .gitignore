@@ -40,3 +40,7 @@ next-env.d.ts
 
 # Drizzle
 drizzle/meta/
+
+# local tooling (portable git, merge backup)
+.tools/
+.git-merge-backup/

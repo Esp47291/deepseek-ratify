@@ -1,4 +1,4 @@
--- Таблица заявок для чистой базы
+-- Leads table for fresh databases (same columns as src/db/schema.ts)
 CREATE TABLE IF NOT EXISTS leads (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Для уже существующих баз со старой схемой (безопасно, ничего не удаляет):
+-- Safe to run on a database created with the old schema
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS service TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS budget TEXT;
 
